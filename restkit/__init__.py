@@ -7,27 +7,29 @@ from restkit.version import version_info, __version__
 
 try:
     from restkit.conn import Connection
-    from restkit.errors import ResourceNotFound, Unauthorized, RequestFailed,\
-RedirectLimit, RequestError, InvalidUrl, ResponseError, ProxyError, \
-ResourceError, ResourceGone
+    from restkit.errors import ResourceNotFound, Unauthorized, RequestFailed, \
+        RedirectLimit, RequestError, InvalidUrl, ResponseError, ProxyError, \
+        ResourceError, ResourceGone
     from restkit.client import Client, MAX_FOLLOW_REDIRECTS
     from restkit.wrappers import Request, Response, ClientResponse
     from restkit.resource import Resource
     from restkit.filters import BasicAuth, OAuthFilter
 except ImportError:
     import traceback
+
     traceback.print_exc()
 
-import urlparse
 import logging
+from urllib.parse import urlparse
 
 LOG_LEVELS = {
     "critical": logging.CRITICAL,
-    "error": logging.ERROR,
-    "warning": logging.WARNING,
-    "info": logging.INFO,
-    "debug": logging.DEBUG
+    "error":    logging.ERROR,
+    "warning":  logging.WARNING,
+    "info":     logging.INFO,
+    "debug":    logging.DEBUG
 }
+
 
 def set_logging(level, handler=None):
     """
@@ -90,11 +92,11 @@ def request(url, method='GET', body=None, headers=None, **kwargs):
         password = u.password or ""
         filters = kwargs.get('filters') or []
         url = urlparse.urlunparse((u.scheme, u.netloc.split("@")[-1],
-            u.path, u.params, u.query, u.fragment))
+                                   u.path, u.params, u.query, u.fragment))
         filters.append(BasicAuth(u.username, password))
 
         kwargs['filters'] = filters
 
     http_client = Client(**kwargs)
     return http_client.request(url, method=method, body=body,
-            headers=headers)
+                               headers=headers)

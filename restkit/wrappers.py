@@ -8,19 +8,20 @@ import copy
 import logging
 import mimetypes
 import os
-from StringIO import StringIO
 import types
-import urlparse
 import uuid
+
+from urllib.parse import urlparse
+from io import StringIO
 
 from restkit.datastructures import MultiDict
 from restkit.errors import AlreadyRead, RequestError
-from restkit.forms import multipart_form_encode, form_encode
+from restkit.forms import form_encode, multipart_form_encode
 from restkit.tee import ResponseTeeInput
-from restkit.util import to_bytestring
-from restkit.util import parse_cookie
+from restkit.util import parse_cookie, to_bytestring
 
 log = logging.getLogger(__name__)
+
 
 class Request(object):
 
@@ -44,22 +45,26 @@ class Request(object):
         if not isinstance(self._headers, MultiDict):
             self._headers = MultiDict(self._headers or [])
         return self._headers
+
     def _headers__set(self, value):
         self._headers = MultiDict(copy.copy(value))
+
     headers = property(_headers__get, _headers__set, doc=_headers__get.__doc__)
 
     def _parsed_url(self):
         if self.url is None:
             raise ValueError("url isn't set")
         return urlparse.urlparse(self.url)
+
     parsed_url = property(_parsed_url, doc="parsed url")
 
     def _path__get(self):
         parsed_url = self.parsed_url
         path = parsed_url.path or '/'
 
-        return urlparse.urlunparse(('','', path, parsed_url.params,
-            parsed_url.query, parsed_url.fragment))
+        return urlparse.urlunparse(('', '', path, parsed_url.params,
+                                    parsed_url.query, parsed_url.fragment))
+
     path = property(_path__get)
 
     def _host__get(self):
@@ -68,6 +73,7 @@ class Request(object):
         if not hdr_host:
             return h
         return hdr_host
+
     host = property(_host__get)
 
     def is_chunked(self):
@@ -87,7 +93,7 @@ class Request(object):
                 type_, opts = cgi.parse_header(ctype)
                 boundary = opts.get('boundary', uuid.uuid4().hex)
                 self._body, self.headers = multipart_form_encode(body,
-                                            self.headers, boundary)
+                                                                 self.headers, boundary)
                 # at this point content-type is "multipart/form-data"
                 # we need to set the content type according to the
                 # correct boundary like
@@ -106,7 +112,7 @@ class Request(object):
         if not ctype:
             ctype = 'application/octet-stream'
             if hasattr(self.body, 'name'):
-                ctype =  mimetypes.guess_type(body.name)[0]
+                ctype = mimetypes.guess_type(body.name)[0]
 
         if not clen:
             if hasattr(self._body, 'fileno'):
@@ -138,6 +144,7 @@ class Request(object):
 
     def _get_body(self):
         return self._body
+
     body = property(_get_body, _set_body, doc="request body")
 
     def maybe_rewind(self, msg=""):
@@ -145,7 +152,7 @@ class Request(object):
             if not hasattr(self.body, 'seek') and \
                     not isinstance(self.body, types.StringTypes):
                 raise RequestError("error: '%s', body can't be rewind."
-                        % msg)
+                                   % msg)
         if log.isEnabledFor(logging.DEBUG):
             log.debug("restart request: %s" % msg)
 
@@ -210,7 +217,6 @@ class BodyWrapper(object):
 
 
 class Response(object):
-
     charset = "utf8"
     unicode_errors = 'strict'
 
@@ -234,7 +240,6 @@ class Response(object):
         if 'set-cookie' in self.headers:
             cookie_header = self.headers.get('set-cookie')
             self.cookies = parse_cookie(cookie_header, self.final_url)
-
 
         self._closed = False
         self._already_read = False
@@ -278,7 +283,6 @@ class Response(object):
         if not self.can_read():
             raise AlreadyRead()
 
-
         body = self._body.read()
         self._already_read = True
 
@@ -300,12 +304,13 @@ class Response(object):
 
         return BodyWrapper(self, self.connection)
 
-
     def tee(self):
         """ copy response input to standard output or a file if length >
         sock.MAX_BODY. This make possible to reuse it in your
         appplication. When all the input has been read, connection is
         released """
         return ResponseTeeInput(self, self.connection,
-                should_close=self.should_close)
+                                should_close=self.should_close)
+
+
 ClientResponse = Response

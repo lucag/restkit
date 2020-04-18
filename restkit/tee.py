@@ -15,7 +15,7 @@ import os
 try:
     from cStringIO import StringIO
 except ImportError:
-    from StringIO import StringIO
+    from io import StringIO
 import tempfile
 
 from restkit import conn

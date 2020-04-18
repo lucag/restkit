@@ -3,16 +3,14 @@
 # This file is part of restkit released under the MIT license.
 # See the NOTICE for more information.
 
-import logging
 import random
-import select
 import socket
 import ssl
 import time
-import cStringIO
 
 from socketpool import Connector
 from socketpool.util import is_connected
+from io import StringIO
 
 CHUNK_SIZE = 16 * 1024
 MAX_BODY = 1024 * 112
@@ -22,9 +20,8 @@ DNS_TIMEOUT = 60
 class Connection(Connector):
 
     def __init__(self, host, port, backend_mod=None, pool=None,
-            is_ssl=False, extra_headers=[], proxy_pieces=None, timeout=None,
-            **ssl_args):
-
+                 is_ssl=False, extra_headers=[], proxy_pieces=None, timeout=None,
+                 **ssl_args):
         # connect the socket, if we are using an SSL connection, we wrap
         # the socket.
         self._s = backend_mod.Socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,7 +30,7 @@ class Connection(Connector):
         self._s.connect((host, port))
         if proxy_pieces:
             self._s.sendall(proxy_pieces)
-            response = cStringIO.StringIO()
+            response = StringIO.StringIO()
             while response.getvalue()[-4:] != '\r\n\r\n':
                 response.write(self._s.recv(1))
             response.close()
@@ -46,7 +43,7 @@ class Connection(Connector):
         self.host = host
         self.port = port
         self._connected = True
-        self._life =  time.time() - random.randint(0, 10)
+        self._life = time.time() - random.randint(0, 10)
         self._pool = pool
         self._released = False
 
@@ -61,7 +58,7 @@ class Connection(Connector):
         return False
 
     def handle_exception(self, exception):
-        raise
+        raise exception
 
     def get_lifetime(self):
         return self._life
@@ -107,7 +104,6 @@ class Connection(Connector):
         for line in list(lines):
             self.send(line, chunked=chunked)
 
-
     # TODO: add support for sendfile api
     def sendfile(self, data, chunked=False):
         """ send a data from a FileObject """
@@ -120,7 +116,6 @@ class Connection(Connector):
             if binarydata == '':
                 break
             self.send(binarydata, chunked=chunked)
-
 
     def recv(self, size=1024):
         return self._s.recv(size)

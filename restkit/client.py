@@ -6,16 +6,15 @@ import base64
 import errno
 import logging
 import os
-import time
 import socket
-import ssl
 import traceback
 import types
-import urlparse
+
+from urllib.parse import urlparse
 
 try:
     from http_parser.http import (
-            HttpStream, BadStatusLine, NoMoreData
+        HttpStream, BadStatusLine, NoMoreData
     )
     from http_parser.reader import SocketReader
 except ImportError:
@@ -25,21 +24,20 @@ except ImportError:
 
 from restkit import __version__
 
-from restkit.conn import Connection
-from restkit.errors import RequestError, RequestTimeout, RedirectLimit, \
-ProxyError
+from restkit.errors import RequestError, RequestTimeout, RedirectLimit
 from restkit.session import get_session
 from restkit.util import parse_netloc, rewrite_location, to_bytestring
 from restkit.wrappers import Request, Response
 
-MAX_CLIENT_TIMEOUT=300
+MAX_CLIENT_TIMEOUT = 300
 MAX_CLIENT_CONNECTIONS = 5
-MAX_CLIENT_TRIES =3
+MAX_CLIENT_TRIES = 3
 CLIENT_WAIT_TRIES = 0.3
 MAX_FOLLOW_REDIRECTS = 5
 USER_AGENT = "restkit/%s" % __version__
 
 log = logging.getLogger(__name__)
+
 
 class Client(object):
     """A client handle a connection at a time. A client is threadsafe,
@@ -61,25 +59,25 @@ class Client(object):
     """
 
     version = (1, 1)
-    response_class=Response
+    response_class = Response
 
     def __init__(self,
-            follow_redirect=False,
-            force_follow_redirect=False,
-            max_follow_redirect=MAX_FOLLOW_REDIRECTS,
-            filters=None,
-            decompress=True,
-            max_status_line_garbage=None,
-            max_header_count=0,
-            pool=None,
-            response_class=None,
-            timeout=None,
-            use_proxy=False,
-            max_tries=3,
-            wait_tries=0.3,
-            pool_size=10,
-            backend="thread",
-            **ssl_args):
+                 follow_redirect=False,
+                 force_follow_redirect=False,
+                 max_follow_redirect=MAX_FOLLOW_REDIRECTS,
+                 filters=None,
+                 decompress=True,
+                 max_status_line_garbage=None,
+                 max_header_count=0,
+                 pool=None,
+                 response_class=None,
+                 timeout=None,
+                 use_proxy=False,
+                 max_tries=3,
+                 wait_tries=0.3,
+                 pool_size=10,
+                 backend="thread",
+                 **ssl_args):
         """
         Client parameters
         ~~~~~~~~~~~~~~~~~
@@ -122,15 +120,13 @@ class Client(object):
         self.response_filters = []
         self.load_filters()
 
-
         # set manager
 
         session_options = dict(
-                retry_delay=wait_tries,
-                max_size = pool_size,
-                retry_max = max_tries,
-                timeout = timeout)
-
+            retry_delay=wait_tries,
+            max_size=pool_size,
+            retry_max=max_tries,
+            timeout=timeout)
 
         if pool is None:
             pool = get_session(backend, **session_options)
@@ -169,8 +165,6 @@ class Client(object):
             if hasattr(f, "on_response"):
                 self.response_filters.append(f)
 
-
-
     def get_connection(self, request):
         """ get a connection from the pool or create new one. """
 
@@ -181,25 +175,24 @@ class Client(object):
         conn = None
         if self.use_proxy:
             conn = self.proxy_connection(request,
-                    addr, is_ssl)
+                                         addr, is_ssl)
         if not conn:
             conn = self._pool.get(host=addr[0], port=addr[1],
-                    pool=self._pool, is_ssl=is_ssl,
-                    timeout=self.timeout,
-                    extra_headers=extra_headers, **self.ssl_args)
-
+                                  pool=self._pool, is_ssl=is_ssl,
+                                  timeout=self.timeout,
+                                  extra_headers=extra_headers, **self.ssl_args)
 
         return conn
 
     def proxy_connection(self, request, req_addr, is_ssl):
         """ do the proxy connection """
         proxy_settings = os.environ.get('%s_proxy' %
-                request.parsed_url.scheme)
+                                        request.parsed_url.scheme)
 
         if proxy_settings and proxy_settings is not None:
             request.is_proxied = True
 
-            proxy_settings, proxy_auth =  _get_proxy_auth(proxy_settings)
+            proxy_settings, proxy_auth = _get_proxy_auth(proxy_settings)
             addr = parse_netloc(urlparse.urlparse(proxy_settings))
 
             if is_ssl:
@@ -212,21 +205,21 @@ class Client(object):
                     user_agent = "User-Agent: restkit/%s\r\n" % __version__
 
                 proxy_pieces = '%s%s%s\r\n' % (proxy_connect, proxy_auth,
-                        user_agent)
+                                               user_agent)
 
                 conn = self._pool.get(host=addr[0], port=addr[1],
-                    pool=self._pool, is_ssl=is_ssl,
-                    timeout=self.timeout,
-                    extra_headers=[], proxy_pieces=proxy_pieces, **self.ssl_args)
+                                      pool=self._pool, is_ssl=is_ssl,
+                                      timeout=self.timeout,
+                                      extra_headers=[], proxy_pieces=proxy_pieces, **self.ssl_args)
             else:
                 headers = []
                 if proxy_auth:
                     headers = [('Proxy-authorization', proxy_auth)]
 
                 conn = self._pool.get(host=addr[0], port=addr[1],
-                        pool=self._pool, is_ssl=False,
-                        timeout=self.timeout,
-                        extra_headers=[], **self.ssl_args)
+                                      pool=self._pool, is_ssl=False,
+                                      timeout=self.timeout,
+                                      extra_headers=[], **self.ssl_args)
             return conn
 
         return
@@ -241,7 +234,7 @@ class Client(object):
         if not request.body and request.method in ('POST', 'PUT',):
             headers['Content-Length'] = 0
 
-        if self.version == (1,1):
+        if self.version == (1, 1):
             httpver = "HTTP/1.1"
         else:
             httpver = "HTTP/1.0"
@@ -268,8 +261,8 @@ class Client(object):
         ]
 
         lheaders.extend(["%s: %s\r\n" % (k, str(v)) for k, v in \
-                headers.items() if k.lower() not in \
-                ('user-agent', 'host', 'accept-encoding',)])
+                         headers.items() if k.lower() not in \
+                         ('user-agent', 'host', 'accept-encoding',)])
         if log.isEnabledFor(logging.DEBUG):
             log.debug("Send headers: %s" % lheaders)
         return "%s\r\n" % "".join(lheaders)
@@ -280,7 +273,7 @@ class Client(object):
 
         if log.isEnabledFor(logging.DEBUG):
             log.debug("Start to perform request: %s %s %s" %
-                    (request.host, request.method, request.path))
+                      (request.host, request.method, request.path))
         tries = 0
         while True:
             conn = None
@@ -290,7 +283,7 @@ class Client(object):
 
                 # send headers
                 msg = self.make_headers_string(request,
-                        conn.extra_headers)
+                                               conn.extra_headers)
 
                 # send body
                 if request.body is not None:
@@ -298,9 +291,8 @@ class Client(object):
                     if request.headers.iget('content-length') is None and \
                             not chunked:
                         raise RequestError(
-                                "Can't determine content length and " +
-                                "Transfer-Encoding header is not chunked")
-
+                            "Can't determine content length and " +
+                            "Transfer-Encoding header is not chunked")
 
                     # handle 100-Continue status
                     # http://www.w3.org/Protocols/rfc2616/rfc2616-sec8.html#sec8.2.3
@@ -310,8 +302,7 @@ class Client(object):
                         conn.send(msg)
                         msg = None
                         p = HttpStream(SocketReader(conn.socket()), kind=1,
-                                decompress=True)
-
+                                       decompress=True)
 
                         if p.status_code != 100:
                             self.reset_request()
@@ -323,11 +314,10 @@ class Client(object):
                     if log.isEnabledFor(logging.DEBUG):
                         log.debug("send body (chunked: %s)" % chunked)
 
-
                     if isinstance(request.body, types.StringTypes):
                         if msg is not None:
                             conn.send(msg + to_bytestring(request.body),
-                                    chunked)
+                                      chunked)
                         else:
                             conn.send(to_bytestring(request.body), chunked)
                     else:
@@ -346,29 +336,29 @@ class Client(object):
                     conn.send(msg)
 
                 return self.get_response(request, conn)
-            except socket.gaierror, e:
+            except socket.gaierror as e:
                 if conn is not None:
                     conn.release(True)
                 raise RequestError(str(e))
-            except socket.timeout, e:
+            except socket.timeout as e:
                 if conn is not None:
                     conn.release(True)
                 raise RequestTimeout(str(e))
-            except socket.error, e:
+            except socket.error as e:
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug("socket error: %s" % str(e))
                 if conn is not None:
                     conn.close()
 
                 errors = (errno.EAGAIN, errno.EPIPE, errno.EBADF,
-                        errno.ECONNRESET)
+                          errno.ECONNRESET)
                 if e[0] not in errors or tries >= self.max_tries:
                     raise RequestError("socket.error: %s" % str(e))
 
                 # should raised an exception in other cases
                 request.maybe_rewind(msg=str(e))
 
-            except NoMoreData, e:
+            except NoMoreData as e:
                 if conn is not None:
                     conn.release(True)
 
@@ -376,7 +366,6 @@ class Client(object):
                 if tries >= self.max_tries:
                     raise
             except BadStatusLine:
-
                 if conn is not None:
                     conn.release(True)
 
@@ -388,7 +377,7 @@ class Client(object):
             except Exception:
                 # unkown error
                 log.debug("unhandled exception %s" %
-                        traceback.format_exc())
+                          traceback.format_exc())
                 if conn is not None:
                     conn.release(True)
 
@@ -400,7 +389,7 @@ class Client(object):
         """ perform immediatly a new request """
 
         request = Request(url, method=method, body=body,
-                headers=headers)
+                          headers=headers)
 
         # apply request filters
         # They are applied only once time.
@@ -434,7 +423,7 @@ class Client(object):
 
         self._nb_redirections -= 1
 
-        #perform a new request
+        # perform a new request
         return self.perform(request)
 
     def get_response(self, request, connection):
@@ -444,7 +433,7 @@ class Client(object):
             log.debug("Start to parse response")
 
         p = HttpStream(SocketReader(connection.socket()), kind=1,
-                decompress=self.decompress)
+                       decompress=self.decompress)
 
         if log.isEnabledFor(logging.DEBUG):
             log.debug("Got response: %s %s" % (p.version(), p.status()))
@@ -455,7 +444,6 @@ class Client(object):
         if self.follow_redirect:
             should_close = not p.should_keep_alive()
             if p.status_code() in (301, 302, 307,):
-
                 # read full body and release the connection
                 p.body_file().read()
                 connection.release(should_close)
@@ -467,8 +455,8 @@ class Client(object):
                             self.body.seek(0)
                         except AttributeError:
                             raise RequestError("Can't redirect %s to %s "
-                                    "because body has already been read"
-                                    % (self.url, location))
+                                               "because body has already been read"
+                                               % (self.url, location))
                     return self.redirect(location, request)
 
             elif p.status_code() == 303 and self.method == "POST":
@@ -509,12 +497,12 @@ def _get_proxy_auth(proxy_settings):
         if u.username:
             proxy_password = u.password or proxy_password
             proxy_settings = urlparse.urlunparse((u.scheme,
-                u.netloc.split("@")[-1], u.path, u.params, u.query,
-                u.fragment))
+                                                  u.netloc.split("@")[-1], u.path, u.params, u.query,
+                                                  u.fragment))
 
     if proxy_username:
         user_auth = base64.encodestring('%s:%s' % (proxy_username,
-                                    proxy_password))
+                                                   proxy_password))
         return proxy_settings, 'Basic %s\r\n' % (user_auth.strip())
     else:
         return proxy_settings, ''

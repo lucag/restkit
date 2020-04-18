@@ -11,10 +11,9 @@ restkit.resource
 This module provide a common interface for all HTTP request.
 """
 from copy import copy
-import urlparse
+from urllib.parse import urlparse
 
-from restkit.errors import ResourceNotFound, Unauthorized, \
-RequestFailed, ResourceGone
+from restkit.errors import ResourceNotFound, Unauthorized, RequestFailed, ResourceGone
 from restkit.client import Client
 from restkit.filters import BasicAuth
 from restkit import util

@@ -159,8 +159,7 @@ class MultiDict(DictMixin):
 
     def pop(self, key, *args):
         if len(args) > 1:
-            raise TypeError, "pop expected at most 2 arguments, got "\
-                              + repr(1 + len(args))
+            raise TypeError("pop expected at most 2 arguments, got " + repr(1 + len(args)))
         for i in range(len(self._items)):
             if self._items[i][0] == key:
                 v = self._items[i][1]
@@ -174,8 +173,7 @@ class MultiDict(DictMixin):
     def ipop(self, key, *args):
         """ like pop but case insensitive """
         if len(args) > 1:
-            raise TypeError, "pop expected at most 2 arguments, got "\
-                              + repr(1 + len(args))
+            raise TypeError("pop expected at most 2 arguments, got " + repr(1 + len(args)))
 
         lkey = key.lower()
         for i, item in enumerate(self._items):
